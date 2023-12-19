@@ -2,7 +2,7 @@
 /*********************************************************************
     ajax.php
 
-    Ajax utils for the installer interface.
+    Ajax utils for client interface.
 
     Peter Rotich <peter@osticket.com>
     Copyright (c)  2006-2013 osTicket
@@ -14,18 +14,39 @@
     vim: expandtab sw=4 ts=4 sts=4:
 **********************************************************************/
 
-require('setup.inc.php');
+function clientLoginPage($msg='Unauthorized') {
+    Http::response(403,'Must login: '.Format::htmlchars($msg));
+    exit;
+}
 
-if(!defined('INCLUDE_DIR'))
-    Http::response(500, __('Server configuration error'));
+require('client.inc.php');
+
+if(!defined('INCLUDE_DIR'))	Http::response(500, 'Server configuration error');
 require_once INCLUDE_DIR.'/class.dispatcher.php';
 require_once INCLUDE_DIR.'/class.ajax.php';
 
 $dispatcher = patterns('',
-    url('^/help/', patterns('ajax.tips.php:HelpTipAjaxAPI',
-        url_get('^tips/(?P<namespace>[\w_.]+)$', 'getTipsJson'),
-        url_get('^(?P<lang>[\w_]+)?/tips/(?P<namespace>[\w_.]+)$', 'getTipsJsonForLang')
+    url('^/config/', patterns('ajax.config.php:ConfigAjaxAPI',
+        url_get('^client$', 'client')
+    )),
+    url('^/draft/', patterns('ajax.draft.php:DraftAjaxAPI',
+        url_post('^(?P<id>\d+)$', 'updateDraftClient'),
+        url_delete('^(?P<id>\d+)$', 'deleteDraftClient'),
+        url_post('^(?P<id>\d+)/attach$', 'uploadInlineImageClient'),
+        url_post('^(?P<namespace>[\w.]+)/attach$', 'uploadInlineImageEarlyClient'),
+        url_get('^(?P<namespace>[\w.]+)$', 'getDraftClient'),
+        url_post('^(?P<namespace>[\w.]+)$', 'createDraftClient')
+    )),
+    url('^/form/', patterns('ajax.forms.php:DynamicFormsAjaxAPI',
+        url_get('^help-topic/(?P<id>\d+)$', 'getClientFormsForHelpTopic'),
+        url_post('^upload/(\d+)?$', 'upload'),
+        url_post('^upload/(\w+)?$', 'attach'),
+        url_post('^upload/(?P<object>ticket|task)/(\w+)$', 'attach')
+    )),
+    url('^/i18n/(?P<lang>[\w_]+)/', patterns('ajax.i18n.php:i18nAjaxAPI',
+        url_get('(?P<tag>\w+)$', 'getLanguageFile')
     ))
 );
+Signal::send('ajax.client', $dispatcher);
 print $dispatcher->resolve(Osticket::get_path_info());
 ?>
